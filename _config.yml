@@ -1,0 +1,11 @@
+# Site settings
+name: Kai Lieth
+title: Kai Lieth's Blog
+email: your-email@domain.com
+description: "A place to write about my projects."
+baseurl: ""
+url: "http://yourdomain.com"
+
+# Build settings
+markdown: kramdown
+permalinks: pretty
