@@ -5,8 +5,8 @@ date: 2014-05-08 04:30:00
 categories: arm kernel
 ---
 
-##The Original Idea##
-I've always been curious about what a kernel does. My normal modus operandi is to sit down and implement whatever I don't understand. And that's the idea here; I want to have a working kernel.
+## The Original Idea
+I've always been curious about how a kernel does what it does. In my mind, the kernel is some sort of magical piece of software that manages the connections between the programs I write and everything else that happens in the computer. It displays graphics for me, helps me get input from the keyboard simply, and even defines these mystical streams called `stdout` and `stdin` that manage input and output for me. My normal modus operandi is to sit down and implement whatever I don't understand. And that's the idea here; I want to have a working kernel.
 
 I've tried a couple times to stumble through tutorials I've found online to put together a simple kernel, but they haven't made any sense to me in the past. That, combined with a less than wonderful Operating Systems course in my Junior year, has made it difficult for me to approach this project in any serious capacity.
 
@@ -14,13 +14,15 @@ I've been brainstorming about this project for a while now; maybe the past year 
 
 Using ARM was somewhat of an arbitrary decision. The only driving factor was many somewhat confused experiences with x86 assembly in the past that I don't wish to repeat.
 
-##Platform Details##
-As I mentioned already, I'm going to be using the ARM architecture. More specifically, I'll be using ARMv6 assembly, targeting the ARM Versatile/PB board with an arm1176 cpu.
+## Platform Details
+I'll be using ARMv6 assembly, targeting the ARM Versatile/PB board with an arm1176 cpu.
 
 As I don't have a physical board, I'll be using [QEMU][2] to emulate the hardware. I compiled my assembly using the arm-none-eabi-binutils and arm-none-eabi-gcc packages. Here are the specific commands I used:
 
     arm-none-eabi-gcc -march=armv6 -o kernel.o -c kernel.s
 	arm-none-eabi-ld -N -Ttext=0x10000 -o kernel.elf kernel.o
+
+The first command compiles the assembly in kernel.s for the ARMv6 architecture, outputting the file into `kernel.o`. The second command then calls the linker with `kernel.o` as input, which places the `text` section, the part of the assembly with executable instructions, at `0x10000`, the starting location of the program counter. The resulting file is `kernel.elf` which is our complete kernel image that can be run in QEMU.
 
 All the examples should be run using:
 
@@ -28,12 +30,26 @@ All the examples should be run using:
 
 For the examples that do not use a display and only write to a serial port, it is a good idea to also include the `-nographic` option. In that case, you can quit QEMU by using `<C-a> x`.
 
-##The Starting Point##
+## Required Background Knowledge
+This post assumes knowledge of how a lot of different parts of the computer work at a much lower level than you would normally need to know. If you don't know how a CPU works at a circuit level or don't understand Memory Mapped I/O or at any point are confused about any of the concepts, I'll try to give a brief explanation here. Otherwise, you can skip down to [The Starting Point](#start)
+
+I don't really have room to cover all the ARM assembly that I used in this post, so I'm going to explain mostly high level concepts.
+
+- *Subroutine*: I use this word mostly interchangably with *function*. In fact, I define all my subroutines with the `.type` directive as a `%function`. However, *function* implies to me a complete entity written in a higher level language, which none of my chunks of code are. Therefore, I wanted another word for it.
+- *Memory Mapped I/O*: I/O happens when the processor needs to communicate with any piece of hardware outside itself, which happens fairly regularly. Maybe it needs to read from the hard disk or send some information to the display. In this post, I will often need to write data to a serial port. Instead of managing the I/O devices on its own, the processor has specified certain memory locations that act as an intermediate step to communicating with the hardware. In the case of the serial port, I can write to the memory location of the port and then the serial port hardware, on its own, will read from that memory location and handle sending the data on its own.  
+It would make no sense for the CPU to directly control the external hardware, because this would take large amounts of time away from executing the program. The hardware is build to know how to perform a task very well, so it is possible to completely separate it from the CPU. Mapping it to memory is the simplest of multiple ways to communicate with hardware devices, which is perfect for this project.
+- *The Stack*: This is a large region of memory that contains data stored sequentially, instead of being individually addressed by a register. Typically, the stack starts at the largest address available and grows *down*. Therefore, when you're allocating new memory to put on the stack, you actually *subtract* from the current location of the stack.
+- *Registers*: These are a small number of special memory locations that the CPU can directly perform operations on. There are a number of general purpose registers, which means that they don't have a specific meaning to the CPU and can be used freely for any calculation. There are around 12 general purpose registers, but in this post, I only end up using the first four, denoted `r0`, `r1`, `r2`, and `r3`. There are also a few registers that have a special meaning.
+	- *Stack pointer*: This is a special register, denoted by `sp`, that keeps track of the most recently allocated location on the stack. Therefore, it points to the address of the *bottom* of the stack.
+	- *Link register*: When jumping to a subroutine or function, this register will hold the address that the program jumped from so that it is easy to return there.
+	- *Program counter*: This register holds the memory location of the currently executing command. Changing this register will jump to a different part of the program. Typically, however, it's safer to use a branch instruction such as `b` or `bl` to safely control the change.
+
+## The Starting Point## {#start}
 I had no clue where to start, so I poked around on Google for a while. I got an idea of where to start from a blog called Syngpolyma I found documenting a similar process to what I hope to acheive, but using almost entirely compiled C code. This wasn't good enough for me as I really wanted to understand what's going on at a deeper level, so I'm starting off today with the same process I found in the blog, but with everything written directly in ARM assembly.
 
 [Here is a link][1] to the Singpolyma blog.
 
-##The Simplest Kernel##
+## The Simplest Kernel
 It's surprisingly difficult to get anything to happen when you're starting with bare metal. Without standard services provided by the kernel or at the very least a display driver, there isn't any good way to display anything on the screen. We'll start off with a kernel that loads and then hangs, doing absolutely nothing. Here's the code:
 
 {% highlight nasm %}
@@ -57,7 +73,7 @@ int main(void) {
 }
 {% endhighlight %}
 
-However, there's some stuff we have to take care of in the assembly that normally we wouldn't have to worry about. I'll take it apart in smaller chunks.
+However, there are many details normally abstracted by C that we have to manually take care of in the assembly. I'll take it apart in smaller chunks.
 
 {% highlight nasm %}
 .text
@@ -69,7 +85,7 @@ These are a few directives to the assembler that make it easier to keep everythi
 {% highlight nasm %}
 _start:
 	ldr sp, =0x07FFFFFF
-	bl main
+	bl mai hat normally we wouldn't have to worry aboutn
 {% endhighlight %}
 
 Here, we are performing two brief actions. First, we have to initialize the stack pointer. The address 0x07FFFFFF is at the top of the memory area, which, for a stack that grows down, is a beautiful place to start. Then, we use the branch-and-link operation to call the `main` function. It's a little pointless to link, in this case, because we aren't ever going to jump back here, but it's a good convention to follow.
@@ -160,7 +176,7 @@ main:
 	b .entry
 {% endhighlight %}
 
-This is the beginning of the main function. It prepares the two registers we'll use. The first tracks the location in the string and the second contains the memory address of the serial port. Then, once those are loaded, we jump into what seems to be the middle of the loop. However, this actually is something I picked up from looking at the assembly gcc generates. I believe it is little shorter than following the normal while loop format.
+This is the beginning of the main function. It prepares the two registers we'll use. The first tracks the location in the string and the second contains the memory address of the serial port. Then, once those are loaded, we jump into what seems to be the middle of the loop. Adding an extra label to jump to in the middle of the loop gives us a better place to start the loop. This actually is something I picked up from looking at the assembly gcc generates. I believe it is little shorter than following the order of execution that seems to happen in the C code.
 
 {% highlight nasm %}
 .loop:
@@ -172,7 +188,7 @@ This is the beginning of the main function. It prepares the two registers we'll 
 	bne .loop
 {% endhighlight %}
 
-Here's the actual loop. The program jumps to `.entry`, grabbing a character from the string and testing if it's the NULL character which identifies the end of the string. If not, jumps back to `.loop`. There, it pushes the character to the serial port and the current character in the string is incremented and the process starts over. After the loop is done, we proceed can then proceed into the infinite waiting loop.
+Here's the actual loop. The program jumps to `.entry`, grabbing a character from the string and testing if it's the NULL character which identifies the end of the string. If not, jumps back to `.loop`. There, it pushes the character to the serial port and the current character in the string is incremented and the process starts over. After the loop is done, we can then proceed into the infinite waiting loop.
 
 Running this with QEMU produces a line on stdout saying `Hello, World!`. Perfect!
 
@@ -196,7 +212,9 @@ puts:
 	bx lr
 {% endhighlight %}
 
-This looks almost the same as what we had in the `main` function, with two major differences. First, we've skipped the `ldr r0, .stringpointer` command. That will be set as a parameter before the subroutine is called. Here is an example:
+This looks almost the same as what we had in the `main` function, with two major differences. First, we can now end a chunk of code with something slightly more sane than an infinite loop. In most cases, we'll want to jump back in the code to the place we called the subroutine from. That's exactly what the last `bx lr` line does. The command `bx` allows us to jump to the address stored in a register, in this case `lr` or the `link register` which is autmatically set by the `bl` command in the main method to point to the next instruction after the jump.
+
+Second, we've skipped the `ldr r0, .stringpointer` command that was in the original version. That will be set as a parameter before the subroutine is called. Here is an example:
 
 {% highlight nasm %}
 main:
@@ -204,10 +222,8 @@ main:
 	bl puts
 {% endhighlight %}
 
-The second major difference is that we can now end the subroutine with something reasonable instead of an infinite loop. In most cases, we'll want to jump back in the code to the place we called the subroutine from. That's exactly what the last `bx lr` line does. The command `bx` allows us to jump to the address stored in a register, in this case `lr` or the `link register` which is autmatically set by the `bl` command in the main method to point to the next instruction after the jump.
-
 ##User Mode##
-So far, everything that's happened has been in Supervisor mode. This mode grants access to everything in the computer, plenty of which should not be accessible to the user. In order to help protect the computer, we can switch it into User mode. At the most basic, we switch over and call a function in user mode like this:
+So far, everything that's happened has been in Supervisor mode. This mode grants access to everything in the computer, plenty of which should not be accessible to the user. For instance, User mode processes should only be able to access the memory that they have directly allocated. If they could access all of memory, they could alter data in other programs and cause security vulnerabilities. Therefore, User mode has to have a stack defined for it. In order to help protect the computer, we can switch it into User mode. At the most basic, we switch over and call a function in user mode like this:
 
 {% highlight nasm %}
 	mov r0, 0x10
@@ -218,7 +234,7 @@ So far, everything that's happened has been in Supervisor mode. This mode grants
 
 In this chunk, the first two lines prepare the magic value `0x10` which tells the processor to switch to User mode when saved to the `SPSR` or `Saved Program Status Register`. Then, the next two lines load the address of a function, in this case a function named `first`, and move that address into `pc`, the program counter.
 
-However, this won't work just yet--we still need to set up the stack inside userland. In order to do that, we'll use a third mode called System mode which is a combination of Supervisor and User modes. System mode uses the stack pointer and link register of User mode, but still has access to the entire computer in the same way Supervisor mode does. That makes it handy to initialize the stack pointer.
+However, this won't work just yet--we still need to set up the stack for use in User mode. In order to do that, we'll use a third mode called System mode which is a combination of Supervisor and User modes. System mode uses the stack pointer and link register of User mode, but still has access to the entire computer in the same way Supervisor mode does. That makes it handy to initialize the stack pointer.
 
 {% highlight nasm %}
 	mov ip, sp
