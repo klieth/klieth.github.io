@@ -8,34 +8,34 @@ categories: arm kernel
 ## The Original Idea
 I've always been curious about how a kernel does what it does. In my mind, the kernel is some sort of magical piece of software that manages the connections between the programs I write and everything else that happens in the computer. It displays graphics for me, helps me get input from the keyboard simply, and even defines these mystical streams called `stdout` and `stdin` that manage input and output for me. My normal modus operandi is to sit down and implement whatever I don't understand. And that's the idea here; I want to have a working kernel.
 
-I've tried a couple times to stumble through tutorials I've found online to put together a simple kernel, but they haven't made any sense to me in the past. That, combined with a less than wonderful Operating Systems course in my Junior year, has made it difficult for me to approach this project in any serious capacity.
+I've tried a couple times to stumble through tutorials I've found online about putting together a simple kernel, but they haven't made any sense to me in the past. That, combined with a less than wonderful Operating Systems course in my Junior year, has made it difficult for me to approach this project seriously.
 
-I've been brainstorming about this project for a while now; maybe the past year or so. I'm not going to bother including a list of things I've been branstorming for two reasons: they are at a much larger scope than this project will likely ever achieve and I'm guaranteed to deviate from them, even if I make it further than a toy kernel that boots up in QEMU.
+I've been brainstorming about this project for a while now--maybe the past year or so. There are two reasons I'm not going to bother including a list of ideas I've been brainstorming about: first, they have a larger scope than this project will most likely ever achieve and second, I'm guaranteed to deviate from them, even if succeed in creating a toy kernel.
 
-Using ARM was somewhat of an arbitrary decision. The only driving factor was many somewhat confused experiences with x86 assembly in the past that I don't wish to repeat.
+Using ARM as a target for the kernel was somewhat of an arbitrary decision. I wanted to avoid Intel-based processors because of my confusing experiences with x86 assembly in the past--experiences I didn't wish to repeat.
 
 ## Platform Details
-I'll be using ARMv6 assembly, targeting the ARM Versatile/PB board with an arm1176 cpu.
+First, I decided to use ARMv6 assembly, targeting the ARM Versatile/PB board with an arm1176 CPU.
 
-As I don't have a physical board, I'll be using [QEMU][2] to emulate the hardware. I compiled my assembly using the arm-none-eabi-binutils and arm-none-eabi-gcc packages. Here are the specific commands I used:
+Since I don't have a physical board, I'm using [QEMU][2] to emulate the hardware. My kernel is compiled using the `arm-none-eabi-binutils` and `arm-none-eabi-gcc` packages. The specific commands I use to compile to the kernel are as follows:
 
-    arm-none-eabi-gcc -march=armv6 -o kernel.o -c kernel.s
-	arm-none-eabi-ld -N -Ttext=0x10000 -o kernel.elf kernel.o
+    > arm-none-eabi-gcc -march=armv6 -o kernel.o -c kernel.s
+	> arm-none-eabi-ld -N -Ttext=0x10000 -o kernel.elf kernel.o
 
-The first command compiles the assembly in kernel.s for the ARMv6 architecture, outputting the file into `kernel.o`. The second command then calls the linker with `kernel.o` as input, which places the `text` section, the part of the assembly with executable instructions, at `0x10000`, the starting location of the program counter. The resulting file is `kernel.elf` which is our complete kernel image that can be run in QEMU.
+The first command compiles the assembly in `kernel.s` for the ARMv6 architecture, outputting the file into `kernel.o`. The second command then calls the linker with `kernel.o` as input, which places the `text` section at `0x10000`, the starting location of the program counter. The resulting file is `kernel.elf`, the complete kernel image, which can be run in QEMU.
 
-All the examples should be run using:
+The command to run the examples is:
 
-    qemu-system-arm -M versatilepb -cpu arm1176 -kernel kernel.elf
+    > qemu-system-arm -M versatilepb -cpu arm1176 -kernel kernel.elf
 
-For the examples that do not use a display and only write to a serial port, it is a good idea to also include the `-nographic` option. In that case, you can quit QEMU by using `<C-a> x`.
+For the examples that do not use a display and write only to a serial port, it is a good idea to also include the `-nographic` option. In that case, you can quit QEMU by using `<C-a> x`.
 
 ## Required Background Knowledge
 This post assumes knowledge of how a lot of different parts of the computer work at a much lower level than you would normally need to know. If you don't know how a CPU works at a circuit level or don't understand Memory Mapped I/O or at any point are confused about any of the concepts, I'll try to give a brief explanation here. Otherwise, you can skip down to [The Starting Point](#start)
 
 I don't really have room to cover all the ARM assembly that I used in this post, so I'm going to explain mostly high level concepts.
 
-- *Subroutine*: I use this word mostly interchangably with *function*. In fact, I define all my subroutines with the `.type` directive as a `%function`. However, *function* implies to me a complete entity written in a higher level language, which none of my chunks of code are. Therefore, I wanted another word for it.
+- *Subroutine*: I use this word mostly interchangably with *function*. In fact, I define each subroutine as a `%function` with the `.type` directive. However, *function* implies to me a complete entity written in a higher level language, which none of my chunks of code are. Therefore, I wanted another word for it.
 - *Memory Mapped I/O*: I/O happens when the processor needs to communicate with any piece of hardware outside itself, which happens fairly regularly. Maybe it needs to read from the hard disk or send some information to the display. In this post, I will often need to write data to a serial port. Instead of managing the I/O devices on its own, the processor has specified certain memory locations that act as an intermediate step to communicating with the hardware. In the case of the serial port, I can write to the memory location of the port and then the serial port hardware, on its own, will read from that memory location and handle sending the data on its own.  
 It would make no sense for the CPU to directly control the external hardware, because this would take large amounts of time away from executing the program. The hardware is build to know how to perform a task very well, so it is possible to completely separate it from the CPU. Mapping it to memory is the simplest of multiple ways to communicate with hardware devices, which is perfect for this project.
 - *The Stack*: This is a large region of memory that contains data stored sequentially, instead of being individually addressed by a register. Typically, the stack starts at the largest address available and grows *down*. Therefore, when you're allocating new memory to put on the stack, you actually *subtract* from the current location of the stack.
@@ -43,6 +43,7 @@ It would make no sense for the CPU to directly control the external hardware, be
 	- *Stack pointer*: This is a special register, denoted by `sp`, that keeps track of the most recently allocated location on the stack. Therefore, it points to the address of the *bottom* of the stack.
 	- *Link register*: When jumping to a subroutine or function, this register will hold the address that the program jumped from so that it is easy to return there.
 	- *Program counter*: This register holds the memory location of the currently executing command. Changing this register will jump to a different part of the program. Typically, however, it's safer to use a branch instruction such as `b` or `bl` to safely control the change.
+- *Text section*: The part of the assembly code that contains executable instructions. It's denoted by the `.text` directive in my code.
 
 ## The Starting Point## {#start}
 I had no clue where to start, so I poked around on Google for a while. I got an idea of where to start from a blog called Syngpolyma I found documenting a similar process to what I hope to acheive, but using almost entirely compiled C code. This wasn't good enough for me as I really wanted to understand what's going on at a deeper level, so I'm starting off today with the same process I found in the blog, but with everything written directly in ARM assembly.
@@ -80,15 +81,15 @@ However, there are many details normally abstracted by C that we have to manuall
 .global _start
 {% endhighlight %}
 
-These are a few directives to the assembler that make it easier to keep everything straight. Of particular importance is the .text directive which states where the executable code starts.
+These are a few directives to the assembler that make it easier to keep everything straight. Of particular importance is the `.text` directive which states where the executable code starts.
 
 {% highlight nasm %}
 _start:
 	ldr sp, =0x07FFFFFF
-	bl mai hat normally we wouldn't have to worry aboutn
+	bl main
 {% endhighlight %}
 
-Here, we are performing two brief actions. First, we have to initialize the stack pointer. The address 0x07FFFFFF is at the top of the memory area, which, for a stack that grows down, is a beautiful place to start. Then, we use the branch-and-link operation to call the `main` function. It's a little pointless to link, in this case, because we aren't ever going to jump back here, but it's a good convention to follow.
+Here, we are performing two important commands. First, we have to initialize the stack pointer. The address 0x07FFFFFF is at the top of the memory area, which, for a stack that grows down, is exactly where we want to start. Then, we use the branch-and-link operation to call the `main` function. It's a little pointless to perform the link part of the command for the time being because we aren't ever going to jump back here, but it's a good convention to follow.
 
 {% highlight nasm %}
 .type main,%function
@@ -101,7 +102,7 @@ main:
 	b main
 {% endhighlight %}
 
-And here's our infinite loop. There's no reason to have a return statement, as it would be unreachable code.
+And here's our infinite loop. There's no reason to have a return command, as it would be unreachable code.
 
 
 ##Hello, World!##
