@@ -262,3 +262,121 @@ public class HappyFace {
 Well, the face moves now! But if you let it go for a second, it wanders right off of the screen--that's not good. We'll let it do that for now, though, and take a look at a few other things in the meantime.
 
 ## Keyboard input
+
+Pushing buttons on the keyboard in Java is a little complicated to understand, so I'm going to write some code for you guys to copy and make it a little simpler for yourselves. This code will be a separate Java Class file in your project called `ArrowKeys.java`
+
+{% highlight java %}
+// ArrowKeys.java
+
+import java.awt.event.KeyListener;
+import java.awt.event.KeyEvent;
+
+public class ArrowKeys implements KeyListener {
+	private static boolean right = false;
+	private static boolean left = false;
+	private static boolean up = false;
+	private static boolean down = false;
+
+	public static boolean isRightPressed() {
+		return right;
+	}
+	public static boolean isLeftPressed() {
+		return left;
+	}
+	public static boolean isUpPressed() {
+		return up;
+	}
+	public static boolean isDownPressed() {
+		return down;
+	}
+
+	@Override
+	public void keyPressed(KeyEvent e) {
+		switch(e.getKeyCode()) {
+			case KeyEvent.VK_LEFT:
+				left = true;
+				break;
+			case KeyEvent.VK_RIGHT:
+				right = true;
+				break;
+			case KeyEvent.VK_UP:
+				up = true;
+				break;
+			case KeyEvent.VK_DOWN:
+				down = true;
+				break;
+			default:
+				System.out.println("No action defined");
+				break;
+		}
+	}
+	@Override
+	public void keyReleased(KeyEvent e) {
+		switch(e.getKeyCode()) {
+			case KeyEvent.VK_LEFT:
+				left = false;
+				break;
+			case KeyEvent.VK_RIGHT:
+				right = false;
+				break;
+			case KeyEvent.VK_UP:
+				up = false;
+				break;
+			case KeyEvent.VK_DOWN:
+				down = false;
+				break;
+			default:
+				System.out.println("No action defined");
+				break;
+		}
+	}
+	@Override
+	public void keyTyped(KeyEvent e) {
+	}
+}
+{% endhighlight %}
+
+Once that's included in your project, you can use these four functions to test whether the keys on the keyboard have been pressed:
+
+- ArrowKeys.isRightPressed()
+- ArrowKeys.isLeftPressed()
+- ArrowKeys.isUpPressed()
+- ArrowKeys.isDownPressed()
+
+Here's an example of how you might use it:
+
+{% highlight java %}
+// HappyFace.java
+
+import java.awt.Graphics;
+
+public class HappyFace {
+
+	private int x;
+	private int y;
+
+	public HappyFace() {
+		x = 0;
+		y = 0;
+	}
+
+	public void move() {
+		if (ArrowKeys.isRightPressed()) {
+			x = x + 2;
+		} else if (ArrowKeys.isLeftPressed()) {
+			x = x - 2;
+		}
+		// Do the same thing here, but using up/down keys and change y
+	}
+
+	public void paint(Graphics g) {
+		// Draw the outline of the face
+		g.drawOval(x,y,200,200);
+
+		// Put your instructions to draw the eyes and nose here
+
+		// Draw the mouth
+		g.drawArc(x + 50,y + 120,100,40,190,160);
+	}
+}
+{% endhighlight %}
