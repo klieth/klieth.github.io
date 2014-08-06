@@ -380,3 +380,11 @@ public class HappyFace {
 	}
 }
 {% endhighlight %}
+
+## Once you're done
+
+There are a number of different things you can try to do now. Here are some ideas:
+
+- Show two faces on the screen at the same time. In order to do that, you may have to change the constructor so that you can specify a different initial position for each face.
+- Show a different picture you've created in a new Java Class file. Remember that you'll need the new file to look very similar to `HappyFace.java` and you need to update `Window.java` to tell it to `move()` and `paint()` the new image.
+- Figure out a way to keep the face from disappearing off the side of the screen. Here's a hint: instead of asking if an arrow key is pressed, ask whether the arrow key is pressed AND the `x,y` location is inside the screen.
