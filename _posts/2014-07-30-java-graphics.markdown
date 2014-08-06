@@ -5,6 +5,10 @@ date: 2014-07-30 16:02:00
 categories: java graphics
 ---
 
+## Part 2
+
+Part two is up! You can find it [here](http://klieth.github.io/java/graphics/2014/08/06/java-graphics-2.html).
+
 ## Happy Face
 
 Today we're going to be writing a Java program that displays a smiley face on the screen. This program requires good knowledge of functions and you also should be familiar with objects, so if you don't understand them I'd suggest taking a little time to refresh what we've learned in the past weeks.
