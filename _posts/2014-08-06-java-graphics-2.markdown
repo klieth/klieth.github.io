@@ -263,6 +263,8 @@ Well, the face moves now! But if you let it go for a second, it wanders right of
 
 ## Keyboard input
 
+   ERROR: this won't actually notice your keypresses. Inside of `Window`, you'll have to add `container.addKeyListener(new ArrowKeys())` to the `main` function.
+
 Pushing buttons on the keyboard in Java is a little complicated to understand, so I'm going to write some code for you guys to copy and make it a little simpler for yourselves. This code will be a separate Java Class file in your project called `ArrowKeys.java`
 
 {% highlight java %}
