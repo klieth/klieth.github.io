@@ -1,0 +1,995 @@
+---
+layout: post
+title: "Pong!"
+date: 2014-08-12 9:01:00
+categories: java pong
+---
+
+## Overview
+
+You guys all now know enough to put together a pong game. First, I'm going to write an overview of the steps we'll be following to finish the game.
+
+1. Set up the game area: just like the HappyFace program, we'll set up a window and draw a background.
+2. Create any necessary objects: we need `Paddle`s and a `Ball` to play with.
+3. Get keyboard input: the paddles should move when keys are pressed. We'll be setting up two sets of keys, one each for the paddles on the two sides. That way you can play against a real person as well!
+4. Move the ball: the ball should move around the screen and bounce off the walls and paddles.
+5. Keep score: When the ball goes behind one of the paddles, the score should count up and everything should reset.
+
+I think that's enough steps for now. Feel free to add whatever you want to the game as you go; this is just the simplest implementation.
+
+## 1. Set up the game area
+
+We'll start off with the area which we call `GameWindow`. This code should be very similar to what we started off with during the second graphics lesson last week.
+
+{% highlight java %}
+// GameWindow.java
+
+import java.awt.Dimension;
+
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
+public class GameWindow extends JPanel {
+	public static final int WINDOW_WIDTH = 500;
+	public static final int WINDOW_HEIGHT = 300;
+
+	public static void main(String[] args) {
+		JFrame container = new JFrame();
+		container.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+		GameWindow w = new GameWindow();
+		container.add(w);
+		container.pack();
+		container.show();
+	}
+
+	public GameWindow() {
+		setPreferredSize(new Dimension(WINDOW_WIDTH,WINDOW_HEIGHT));
+	}
+}
+{% endhighlight %}
+
+I've already explaind everything here before, so I'll go ahead and dive into the next part: the background. Here, we'll draw some art that will always show up on the screen while we're playing. I'm going to keep this simple--just a line with a circle to divide the field into two halves, but you should feel free to decorate!
+
+{% highlight java %}
+// GameWindow.java
+
+import java.awt.Dimension;
+import java.awt.Graphics;
+
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
+public class GameWindow extends JPanel {
+	public static final int WINDOW_WIDTH = 500;
+	public static final int WINDOW_HEIGHT = 300;
+
+	public static void main(String[] args) {
+		JFrame container = new JFrame();
+		container.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+		GameWindow w = new GameWindow();
+		container.add(w);
+		container.pack();
+		container.show();
+	}
+
+	public GameWindow() {
+		setPreferredSize(new Dimension(WINDOW_WIDTH,WINDOW_HEIGHT));
+	}
+
+	public void paint(Graphics g) {
+		g.drawLine(WINDOW_WIDTH/2, 0, WINDOW_WIDTH/2, WINDOW_HEIGHT);
+		g.drawOval(WINDOW_WIDTH/2 - WINDOW_HEIGHT/6,
+				WINDOW_HEIGHT/2 - WINDOW_HEIGHT/6,
+				WINDOW_HEIGHT/3, WINDOW_HEIGHT/3);
+	}
+}
+{% endhighlight %}
+
+The math here looks fairly complicated, but it actually isn't doing anything fancy. The first command calculates where to draw a line vertically halfway across the window. The second command calculates the location and size of a circle that covers 1/3 of the line in the center of the window. Having all this fancy math here means that no matter what you change the size of the window to, the line and circle will always be in the right place. Go ahead and give it a try if you'd like.
+
+This is a fairly minimal game area for now; feel free to take some time and make it look nicer. I'm going to continue on to the next part: thinking about what objects are a part of our game.
+
+## 2. Create game objects
+
+There are two types of objects we need to think about: `Paddle`s and a `Ball`. Just like any other object, each of these is going to have their own Java class file. Let's start with the `Paddle`.
+
+{% highlight java %}
+// Paddle.java
+
+import java.awt.Graphics;
+
+public class Paddle {
+	public static final int HEIGHT = 80;
+	public static final int WIDTH = 15;
+
+	// These variables store the position of the paddle
+	private int x;
+	private int y;
+
+	// This is the constructor method where you can set
+	// the initial location of the paddle
+	public Paddle(int startX, int startY) {
+		x = startX;
+		y = startY;
+	}
+
+	// This simply draws a rectangle where the paddle is
+	// supposed to be
+	public void draw(Graphics g) {
+		g.drawRect(x, y, WIDTH, HEIGHT);
+	}
+}
+{% endhighlight %}
+
+If you run the program right now, you won't see anything new. First, we will have to add a paddle to the game. Remember, there are going to be two paddles: one on the left and one on the right. Let's create two new variables for them in the `GameWindow`.
+
+{% highlight java %}
+// GameWindow.java
+
+import java.awt.Dimension;
+import java.awt.Graphics;
+
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
+public class GameWindow extends JPanel {
+	public static final int WINDOW_WIDTH = 500;
+	public static final int WINDOW_HEIGHT = 300;
+
+	public static void main(String[] args) {
+		JFrame container = new JFrame();
+		container.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+		GameWindow w = new GameWindow();
+		container.add(w);
+		container.pack();
+		container.show();
+	}
+
+
+	Paddle left = new Paddle(10, WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+	Paddle right = new Paddle(WINDOW_WIDTH - 10 - Paddle.WIDTH,
+								WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+
+	public GameWindow() {
+		setPreferredSize(new Dimension(WINDOW_WIDTH,WINDOW_HEIGHT));
+	}
+
+	public void paint(Graphics g) {
+		g.drawLine(WINDOW_WIDTH/2, 0, WINDOW_WIDTH/2, WINDOW_HEIGHT);
+		g.drawOval(WINDOW_WIDTH/2 - WINDOW_HEIGHT/6,
+				WINDOW_HEIGHT/2 - WINDOW_HEIGHT/6,
+				WINDOW_HEIGHT/3, WINDOW_HEIGHT/3);
+
+
+		// remember to tell the computer it needs to draw the new
+		// paddles!
+		left.draw(g);
+		right.draw(g);
+	}
+}
+{% endhighlight %}
+
+Once again, I've included some fancy math to make the paddles always show up in the middle of the screen and the same distance from the edge, no matter the size of the window. If you run the program now, you should see the paddles sitting on each side of the window. Now, the `Ball`.
+
+{% highlight java %}
+// Ball.java
+
+import java.awt.Graphics;
+
+public class Ball {
+	public static final int SIZE = 20;
+
+	private int x;
+	private int y;
+
+	public Ball (int startX, int startY) {
+		x = startX;
+		y = startY;
+	}
+
+	public void draw(Graphics g) {
+		g.drawOval(x, y, SIZE, SIZE);
+	}
+}
+{% endhighlight %}
+
+Instead of `WIDTH` and `HEIGHT` in this case, I've just used one variable `SIZE`. This works because the ball is always going to be a perfect circle and therefore the width and height should always be the same. Otherwise, this looks very similar to the `Paddle`. We're just using `drawOval` instead of `drawRectangle`.
+
+## 3. Get keyboard input
+
+This game isn't much fun without the paddles moving. Let's get a little interaction with the player and take input from the arrow keys. First, however, because things on the screen are going to be moving--that is, they're going to be animated--we first need to set up everything to get the animation to show up. Most importantly, we'll need to add in the animation loop in the `GameWindow`.
+
+{% highlight java %}
+// GameWindow.java
+
+import java.awt.Dimension;
+import java.awt.Graphics;
+
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
+public class GameWindow extends JPanel {
+	public static final int WINDOW_WIDTH = 500;
+	public static final int WINDOW_HEIGHT = 300;
+
+	public static void main(String[] args) {
+		JFrame container = new JFrame();
+		container.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+		GameWindow w = new GameWindow();
+		container.add(w);
+		container.pack();
+		container.show();
+
+		// Animation loop
+		long frameStartTime;
+		while (true) {
+			frameStartTime = System.currentTimeMillis();
+
+			w.moveAllObjects();
+			w.repaint();
+
+			try {
+				long sleepTime = 50 - (System.currentTimeMillis() - frameStartTime);
+				Thread.sleep(sleepTime > 0 ? sleepTime : 0);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+
+	Paddle left = new Paddle(10, WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+	Paddle right = new Paddle(WINDOW_WIDTH - 10 - Paddle.WIDTH,
+								WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+	Ball ball = new Ball(WINDOW_WIDTH/2-Ball.SIZE/2,WINDOW_HEIGHT/2-Ball.SIZE/2);
+
+	public GameWindow() {
+		setPreferredSize(new Dimension(WINDOW_WIDTH,WINDOW_HEIGHT));
+	}
+
+	public void moveAllObjects() {
+	}
+
+	public void paint(Graphics g) {
+		g.drawLine(WINDOW_WIDTH/2, 0, WINDOW_WIDTH/2, WINDOW_HEIGHT);
+		g.drawOval(WINDOW_WIDTH/2 - WINDOW_HEIGHT/6,
+				WINDOW_HEIGHT/2 - WINDOW_HEIGHT/6,
+				WINDOW_HEIGHT/3, WINDOW_HEIGHT/3);
+
+
+		left.draw(g);
+		right.draw(g);
+		ball.draw(g);
+	}
+}
+{% endhighlight %}
+
+To do the actual work with the arrow keys, We're going to be using a similar file to last week. This time, instead of just the arrow keys, it will have a couple other handy ones to use as well. We'll call it `Keys.java`. I've copied the code here for you to use.
+
+{% highlight java %}
+// Keys.java
+
+import java.awt.event.KeyListener;
+import java.awt.event.KeyEvent;
+
+public class Keys implements KeyListener {
+	private static boolean right = false;
+	private static boolean left = false;
+	private static boolean up = false;
+	private static boolean down = false;
+	private static boolean w = false;
+	private static boolean s = false;
+
+	public static boolean isRightPressed() {
+		return right;
+	}
+	public static boolean isLeftPressed() {
+		return left;
+	}
+	public static boolean isUpPressed() {
+		return up;
+	}
+	public static boolean isDownPressed() {
+		return down;
+	}
+	public static boolean isWPressed() {
+		return w;
+	}
+	public static boolean isSPressed() {
+		return s;
+	}
+
+	@Override
+	public void keyPressed(KeyEvent e) {
+		switch(e.getKeyCode()) {
+			case KeyEvent.VK_LEFT:
+				left = true;
+				break;
+			case KeyEvent.VK_RIGHT:
+				right = true;
+				break;
+			case KeyEvent.VK_UP:
+				up = true;
+				break;
+			case KeyEvent.VK_DOWN:
+				down = true;
+				break;
+			case KeyEvent.VK_W:
+				w = true;
+				break;
+			case KeyEvent.VK_S:
+				s = true;
+				break;
+			default:
+				System.out.println("No action defined");
+				break;
+		}
+	}
+	@Override
+	public void keyReleased(KeyEvent e) {
+		switch(e.getKeyCode()) {
+			case KeyEvent.VK_LEFT:
+				left = false;
+				break;
+			case KeyEvent.VK_RIGHT:
+				right = false;
+				break;
+			case KeyEvent.VK_UP:
+				up = false;
+				break;
+			case KeyEvent.VK_DOWN:
+				down = false;
+				break;
+			case KeyEvent.VK_W:
+				w = false;
+				break;
+			case KeyEvent.VK_S:
+				s = false;
+				break;
+			default:
+				System.out.println("No action defined");
+				break;
+		}
+	}
+	@Override
+	public void keyTyped(KeyEvent e) {
+	}
+}
+{% endhighlight %}
+
+First, let's tell the paddle how to move itself. We're going to add `moveUp` and `moveDown` functions that control the paddle's motion. The `SPEED` variable defines how many pixels the paddle is able to move between frames.
+
+{% highlight java %}
+// Paddle.java
+
+import java.awt.Graphics;
+
+public class Paddle {
+	public static final int HEIGHT = 80;
+	public static final int WIDTH = 15;
+
+	public static final int SPEED = 3;
+
+	private int x;
+	private int y;
+
+	public Paddle(int startX, int startY) {
+		x = startX;
+		y = startY;
+	}
+
+	public void draw(Graphics g) {
+		g.drawRect(x, y, WIDTH, HEIGHT);
+	}
+
+	public void moveUp() {
+		y = y - SPEED;
+	}
+
+	public void moveDown() {
+		y = y + SPEED;
+	}
+}
+{% endhighlight %}
+
+Then, we'll have to make a couple modifications to the GameWindow so that it actually listens for key presses. We'll also add in the code to listen for the up/down keys to move the right paddle and the w/s keys to move the left paddle.
+
+{% highlight java %}
+// GameWindow.java
+
+import java.awt.Dimension;
+import java.awt.Graphics;
+
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
+public class GameWindow extends JPanel {
+	public static final int WINDOW_WIDTH = 500;
+	public static final int WINDOW_HEIGHT = 300;
+
+	public static void main(String[] args) {
+		JFrame container = new JFrame();
+		container.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		container.addKeyListener(new Keys());
+
+		GameWindow w = new GameWindow();
+		container.add(w);
+		container.pack();
+		container.show();
+
+		long frameStartTime;
+		while (true) {
+			frameStartTime = System.currentTimeMillis();
+
+			w.moveAllObjects();
+			w.repaint();
+
+			try {
+				long sleepTime = 50 - (System.currentTimeMillis() - frameStartTime);
+				Thread.sleep(sleepTime > 0 ? sleepTime : 0);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+
+	Paddle left = new Paddle(10, WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+	Paddle right = new Paddle(WINDOW_WIDTH - 10 - Paddle.WIDTH,
+								WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+	Ball ball = new Ball(WINDOW_WIDTH/2-Ball.SIZE/2,WINDOW_HEIGHT/2-Ball.SIZE/2);
+
+	public GameWindow() {
+		setPreferredSize(new Dimension(WINDOW_WIDTH,WINDOW_HEIGHT));
+	}
+
+	public void moveAllObjects() {
+		if (Keys.isUpPressed()) {
+			right.moveUp();
+		} else if (Keys.isDownPressed()) {
+			right.moveDown();
+		}
+		if (Keys.isWPressed()) {
+			left.moveUp();
+		} else if (Keys.isSPressed()) {
+			left.moveDown();
+		}
+	}
+
+	public void paint(Graphics g) {
+		g.drawLine(WINDOW_WIDTH/2, 0, WINDOW_WIDTH/2, WINDOW_HEIGHT);
+		g.drawOval(WINDOW_WIDTH/2 - WINDOW_HEIGHT/6,
+				WINDOW_HEIGHT/2 - WINDOW_HEIGHT/6,
+				WINDOW_HEIGHT/3, WINDOW_HEIGHT/3);
+
+		left.draw(g);
+		right.draw(g);
+		ball.draw(g);
+	}
+}
+{% endhighlight %}
+
+So now the paddles both move. They should move independently, as well, using the proper keys to control the proper paddle. However, there's still one problem--the paddles can go off the top and the bottom of the screen. We'll fix that by adding a condition that the paddles can only move when they're somewhere in the middle of the screen. Therefore, they'll be unable to move once they get to the edge of the screen.
+
+Because the `x` and `y` variables in the `Paddle` class are listed as `private`, that means we can't add the condition to the code we were writing for movement in the `GameWindow` class. Instead, we're going to have to add this in to the `Paddle` class.
+
+{% highlight java %}
+// Paddle.java
+
+import java.awt.Graphics;
+
+public class Paddle {
+	public static final int HEIGHT = 80;
+	public static final int WIDTH = 15;
+
+	public static final int SPEED = 3;
+
+	private int x;
+	private int y;
+
+	public Paddle(int startX, int startY) {
+		x = startX;
+		y = startY;
+	}
+
+	public void draw(Graphics g) {
+		g.drawRect(x, y, WIDTH, HEIGHT);
+	}
+
+	public void moveUp() {
+		if (y > 2) {
+			y = y - SPEED;
+		}
+	}
+
+	public void moveDown() {
+		if (y < GameWindow.WINDOW_HEIGHT - HEIGHT - 2) {
+			y = y + SPEED;
+		}
+	}
+}
+{% endhighlight %}
+
+## 4. Move the ball
+
+Moving the ball follows the same steps as all animations. We'll give the `Ball` class a `move` function that tells the computer how much it moves every frame. However, the only difference is that it's actually going to have to change direction when it hits the wall. 
+
+{% highlight java %}
+// Ball.java
+
+import java.awt.Graphics;
+
+public class Ball {
+	public static final int SIZE = 20;
+
+	private int x;
+	private int y;
+
+	private int xSpeed = 2;
+	private int ySpeed = 3;
+
+	public Ball (int startX, int startY) {
+		x = startX;
+		y = startY;
+	}
+
+	public void draw(Graphics g) {
+		g.drawOval(x, y, SIZE, SIZE);
+	}
+
+	public void move() {
+		if (x < 2 || x > GameWindow.WINDOW_WIDTH - SIZE - 2) {
+			xSpeed = -xSpeed;
+		}
+		if (y < 3 || y > GameWindow.WINDOW_HEIGHT - SIZE - 3) {
+			ySpeed = -ySpeed;
+		}
+		x = x + xSpeed;
+		y = y + ySpeed;
+	}
+}
+{% endhighlight %}
+
+And don't forget to tell the ball to move in the `GameWindow`.
+
+{% highlight java %}
+// GameWindow.java
+
+import java.awt.Dimension;
+import java.awt.Graphics;
+
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
+public class GameWindow extends JPanel {
+	public static final int WINDOW_WIDTH = 500;
+	public static final int WINDOW_HEIGHT = 300;
+
+	public static void main(String[] args) {
+		JFrame container = new JFrame();
+		container.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		container.addKeyListener(new Keys());
+
+		GameWindow w = new GameWindow();
+		container.add(w);
+		container.pack();
+		container.show();
+
+		long frameStartTime;
+		while (true) {
+			frameStartTime = System.currentTimeMillis();
+
+			w.moveAllObjects();
+			w.repaint();
+
+			try {
+				long sleepTime = 50 - (System.currentTimeMillis() - frameStartTime);
+				Thread.sleep(sleepTime > 0 ? sleepTime : 0);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+
+	Paddle left = new Paddle(10, WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+	Paddle right = new Paddle(WINDOW_WIDTH - 10 - Paddle.WIDTH,
+								WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+	Ball ball = new Ball(WINDOW_WIDTH/2-Ball.SIZE/2,WINDOW_HEIGHT/2-Ball.SIZE/2);
+
+	public GameWindow() {
+		setPreferredSize(new Dimension(WINDOW_WIDTH,WINDOW_HEIGHT));
+	}
+
+	public void moveAllObjects() {
+		if (Keys.isUpPressed()) {
+			right.moveUp();
+		} else if (Keys.isDownPressed()) {
+			right.moveDown();
+		}
+		if (Keys.isWPressed()) {
+			left.moveUp();
+		} else if (Keys.isSPressed()) {
+			left.moveDown();
+		}
+		ball.move();
+	}
+
+	public void paint(Graphics g) {
+		g.drawLine(WINDOW_WIDTH/2, 0, WINDOW_WIDTH/2, WINDOW_HEIGHT);
+		g.drawOval(WINDOW_WIDTH/2 - WINDOW_HEIGHT/6,
+				WINDOW_HEIGHT/2 - WINDOW_HEIGHT/6,
+				WINDOW_HEIGHT/3, WINDOW_HEIGHT/3);
+
+		left.draw(g);
+		right.draw(g);
+		ball.draw(g);
+	}
+}
+{% endhighlight %}
+
+The `xSpeed` and `ySpeed` variables keep track of the amount that the ball moves every frame. Then, when the ball gets near to one of the edges, the speed flips to send the ball in the other direction. This makes it look like the ball is bouncing off the walls. However, the ball still goes through the paddles. To fix that, we're going to need to tell the `Ball`'s `move` function about the two paddles and let it decide if it has hit the paddle.
+
+First, we need to make some modifications the the `Paddle` class so that we can get all the necessary information from the paddle such as its `x` and `y` location.
+
+{% highlight java %}
+// Paddle.java
+
+import java.awt.Graphics;
+
+public class Paddle {
+	public static final int HEIGHT = 80;
+	public static final int WIDTH = 15;
+
+	public static final int SPEED = 3;
+
+	private int x;
+	private int y;
+
+	public int getX() {
+		return x;
+	}
+	public int getY() {
+		return y;
+	}
+
+	public Paddle(int startX, int startY) {
+		x = startX;
+		y = startY;
+	}
+
+	public void draw(Graphics g) {
+		g.drawRect(x, y, WIDTH, HEIGHT);
+	}
+
+	public void moveUp() {
+		if (y > 2) {
+			y = y - SPEED;
+		}
+	}
+
+	public void moveDown() {
+		if (y < GameWindow.WINDOW_HEIGHT - HEIGHT - 2) {
+			y = y + SPEED;
+		}
+	}
+}
+{% endhighlight %}
+
+In the `Ball` class, instead of testing to see whether the ball has hit the side of the window behind the paddle, we're going to test to see if the ball has hit the paddle itself. Take a good look here, because I've actually taken a couple lines of code out and replaced them with something new.
+
+{% highlight java %}
+// Ball.java
+
+import java.awt.Graphics;
+
+public class Ball {
+	public static final int SIZE = 20;
+
+	private int x;
+	private int y;
+
+	private int xSpeed = 2;
+	private int ySpeed = 3;
+
+	public Ball (int startX, int startY) {
+		x = startX;
+		y = startY;
+	}
+
+	public void draw(Graphics g) {
+		g.drawOval(x, y, SIZE, SIZE);
+	}
+
+	public void move(Paddle left, Paddle right) {
+		if (y > left.getY() && y + SIZE < left.getY() + Paddle.HEIGHT) {
+			if (x < left.getX() + Paddle.WIDTH) {
+				xSpeed = -xSpeed;
+			}
+		} else if (y > right.getY() && y + SIZE < right.getY() + Paddle.HEIGHT) {
+			if (x + SIZE > right.getX()) {
+				xSpeed = -xSpeed;
+			}
+		}
+		if (y < 2 || y > GameWindow.WINDOW_HEIGHT - SIZE - 2) {
+			ySpeed = -ySpeed;
+		}
+		x = x + xSpeed;
+		y = y + ySpeed;
+	}
+}
+{% endhighlight %}
+
+## 5. Keep score
+
+We'll be keeping score inside the `GameWindow` class. This is the place that makes the most sense to hold the score variables because it controls basically every aspect of the game. First, we'll put in a few handy functions to help us reset the game when someone scores.
+
+We need to know whether the ball has hit the right or left edge of the screen.
+
+{% highlight java %}
+// Ball.java
+
+import java.awt.Graphics;
+
+public class Ball {
+	public static final int SIZE = 20;
+
+	private int x;
+	private int y;
+
+	private int xSpeed = 2;
+	private int ySpeed = 3;
+
+	public Ball (int startX, int startY) {
+		x = startX;
+		y = startY;
+	}
+
+	public void draw(Graphics g) {
+		g.drawOval(x, y, SIZE, SIZE);
+	}
+
+	public void move(Paddle left, Paddle right) {
+		if (y > left.getY() && y + SIZE < left.getY() + Paddle.HEIGHT) {
+			if (x < left.getX() + Paddle.WIDTH) {
+				xSpeed = -xSpeed;
+			}
+		} else if (y > right.getY() && y + SIZE < right.getY() + Paddle.HEIGHT) {
+			if (x + SIZE > right.getX()) {
+				xSpeed = -xSpeed;
+			}
+		}
+		if (y < 2 || y > GameWindow.WINDOW_HEIGHT - SIZE - 2) {
+			ySpeed = -ySpeed;
+		}
+		x = x + xSpeed;
+		y = y + ySpeed;
+	}
+
+	public boolean onLeftEdge() {
+		if (x < 2) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+	public boolean onRightEdge() {
+		if (x > GameWindow.WINDOW_WIDTH - SIZE - 2) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+}
+{% endhighlight %}
+
+Then, we need a way to reset all the objects. I'll also go ahead and add in the code that tests whether the ball has hit the right or left edge and include some variables to keep track of the score.
+
+{% highlight java %}
+// GameWindow.java
+
+import java.awt.Dimension;
+import java.awt.Graphics;
+
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
+public class GameWindow extends JPanel {
+	public static final int WINDOW_WIDTH = 500;
+	public static final int WINDOW_HEIGHT = 300;
+
+	public static int leftScore = 0;
+	public static int rightScore = 0;
+
+	public static void main(String[] args) {
+		JFrame container = new JFrame();
+		container.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		container.addKeyListener(new Keys());
+
+		GameWindow w = new GameWindow();
+		container.add(w);
+		container.pack();
+		container.show();
+
+		long frameStartTime;
+		while (true) {
+			frameStartTime = System.currentTimeMillis();
+
+			w.moveAllObjects();
+			w.repaint();
+
+			try {
+				long sleepTime = 50 - (System.currentTimeMillis() - frameStartTime);
+				Thread.sleep(sleepTime > 0 ? sleepTime : 0);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+
+	Paddle left = new Paddle(10, WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+	Paddle right = new Paddle(WINDOW_WIDTH - 10 - Paddle.WIDTH,
+								WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+	Ball ball = new Ball(WINDOW_WIDTH/2-Ball.SIZE/2,WINDOW_HEIGHT/2-Ball.SIZE/2);
+
+	public GameWindow() {
+		setPreferredSize(new Dimension(WINDOW_WIDTH,WINDOW_HEIGHT));
+	}
+
+	public void moveAllObjects() {
+		if (Keys.isUpPressed()) {
+			right.moveUp();
+		} else if (Keys.isDownPressed()) {
+			right.moveDown();
+		}
+		if (Keys.isWPressed()) {
+			left.moveUp();
+		} else if (Keys.isSPressed()) {
+			left.moveDown();
+		}
+		ball.move(left, right);
+		if (ball.onLeftEdge()) {
+			rightScore = rightScore + 1;
+			resetAllObjects();
+		} else if (ball.onRightEdge()) {
+			leftScore = leftScore + 1;
+			resetAllObjects();
+		}
+	}
+
+	public void resetAllObjects() {
+		left = new Paddle(10, WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+		right = new Paddle(WINDOW_WIDTH - 10 - Paddle.WIDTH,     	
+							WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+		ball = new Ball(WINDOW_WIDTH/2-Ball.SIZE/2,WINDOW_HEIGHT/2-Ball.SIZE/2);
+	}
+
+	public void paint(Graphics g) {
+		g.drawLine(WINDOW_WIDTH/2, 0, WINDOW_WIDTH/2, WINDOW_HEIGHT);
+		g.drawOval(WINDOW_WIDTH/2 - WINDOW_HEIGHT/6,
+				WINDOW_HEIGHT/2 - WINDOW_HEIGHT/6,
+				WINDOW_HEIGHT/3, WINDOW_HEIGHT/3);
+
+		left.draw(g);
+		right.draw(g);
+		ball.draw(g);
+	}
+}
+{% endhighlight %}
+
+Now we need to get the score to show up on the screen. We'll draw a couple numbers for that.
+
+{% highlight java %}
+// GameWindow.java
+
+import java.awt.Dimension;
+import java.awt.Graphics;
+
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
+public class GameWindow extends JPanel {
+	public static final int WINDOW_WIDTH = 500;
+	public static final int WINDOW_HEIGHT = 300;
+
+	public static int leftScore = 0;
+	public static int rightScore = 0;
+
+	public static void main(String[] args) {
+		JFrame container = new JFrame();
+		container.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		container.addKeyListener(new Keys());
+
+		GameWindow w = new GameWindow();
+		container.add(w);
+		container.pack();
+		container.show();
+
+		long frameStartTime;
+		while (true) {
+			frameStartTime = System.currentTimeMillis();
+
+			w.moveAllObjects();
+			w.repaint();
+
+			try {
+				long sleepTime = 50 - (System.currentTimeMillis() - frameStartTime);
+				Thread.sleep(sleepTime > 0 ? sleepTime : 0);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+
+	Paddle left = new Paddle(10, WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+	Paddle right = new Paddle(WINDOW_WIDTH - 10 - Paddle.WIDTH,
+								WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+	Ball ball = new Ball(WINDOW_WIDTH/2-Ball.SIZE/2,WINDOW_HEIGHT/2-Ball.SIZE/2);
+
+	public GameWindow() {
+		setPreferredSize(new Dimension(WINDOW_WIDTH,WINDOW_HEIGHT));
+	}
+
+	public void moveAllObjects() {
+		if (Keys.isUpPressed()) {
+			right.moveUp();
+		} else if (Keys.isDownPressed()) {
+			right.moveDown();
+		}
+		if (Keys.isWPressed()) {
+			left.moveUp();
+		} else if (Keys.isSPressed()) {
+			left.moveDown();
+		}
+		ball.move(left, right);
+		if (ball.onLeftEdge()) {
+			rightScore = rightScore + 1;
+			resetAllObjects();
+		} else if (ball.onRightEdge()) {
+			leftScore = leftScore + 1;
+			resetAllObjects();
+		}
+	}
+
+	public void resetAllObjects() {
+		left = new Paddle(10, WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+		right = new Paddle(WINDOW_WIDTH - 10 - Paddle.WIDTH,     	
+							WINDOW_HEIGHT/2 - Paddle.HEIGHT/2);
+		ball = new Ball(WINDOW_WIDTH/2-Ball.SIZE/2,WINDOW_HEIGHT/2-Ball.SIZE/2);
+	}
+
+	public void paint(Graphics g) {
+		g.drawLine(WINDOW_WIDTH/2, 0, WINDOW_WIDTH/2, WINDOW_HEIGHT);
+		g.drawOval(WINDOW_WIDTH/2 - WINDOW_HEIGHT/6,
+				WINDOW_HEIGHT/2 - WINDOW_HEIGHT/6,
+				WINDOW_HEIGHT/3, WINDOW_HEIGHT/3);
+
+		g.drawString(Integer.toString(leftScore), WINDOW_WIDTH/3, 15);
+		g.drawString(Integer.toString(rightScore), 2*WINDOW_WIDTH/3, 15);
+
+		left.draw(g);
+		right.draw(g);
+		ball.draw(g);
+	}
+}
+{% endhighlight %}
+
+And there you go! Congratulations, you've finished the pong game!
+
+## After this
+
+There are plenty more things you could do to make this game a little nicer. Feel free to experiment, but I suggest you make a copy of your working project so that you can save a version that works!
+
+Here are some ideas:
+
+1. Make a screen that shows up at the beginning before you start the game. The best way to do this is to create a different window similar to `GameWindow` that shows a screen. Then you can change `Keys` so that you can use the enter key, for example, to start the game.
+2. Make colorful art. There's no reason for everything to be black and white lines other than the fact that it made the code simple for the blog. You can set the drawing color and then draw `fillOval` and `fillRect` all you want! Take a look at the `Graphics` documentation online or look up a tutorial on how to use colors.
+3. Make some power-ups. Have different colored blocks show up on the screen at different times and move around. If they run into a paddle, then that paddle can do something: get longer or shorter, move faster or slower, or whatever you want.
+
+Good luck!
